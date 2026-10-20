@@ -14,7 +14,177 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      monthly_distance: {
+        Row: {
+          meters: number
+          month: string
+          player_id: string
+          run_count: number
+          synced_at: string
+        }
+        Insert: {
+          meters?: number
+          month: string
+          player_id: string
+          run_count?: number
+          synced_at?: string
+        }
+        Update: {
+          meters?: number
+          month?: string
+          player_id?: string
+          run_count?: number
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_distance_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          athlete_id: number | null
+          claimed_at: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          athlete_id?: number | null
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          athlete_id?: number | null
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: true
+            referencedRelation: "strava_accounts"
+            referencedColumns: ["athlete_id"]
+          },
+        ]
+      }
+      punishments: {
+        Row: {
+          created_at: string
+          id: string
+          month: string
+          player_id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: string
+          player_id: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: string
+          player_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "punishments_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spins: {
+        Row: {
+          loser_player_id: string
+          month: string
+          punishment_id: string
+          spun_at: string
+        }
+        Insert: {
+          loser_player_id: string
+          month: string
+          punishment_id: string
+          spun_at?: string
+        }
+        Update: {
+          loser_player_id?: string
+          month?: string
+          punishment_id?: string
+          spun_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spins_loser_player_id_fkey"
+            columns: ["loser_player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spins_punishment_id_fkey"
+            columns: ["punishment_id"]
+            isOneToOne: false
+            referencedRelation: "punishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strava_accounts: {
+        Row: {
+          access_token: string
+          athlete_id: number
+          avatar_url: string | null
+          created_at: string
+          expires_at: number
+          firstname: string | null
+          lastname: string | null
+          refresh_token: string
+          scope: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          athlete_id: number
+          avatar_url?: string | null
+          created_at?: string
+          expires_at: number
+          firstname?: string | null
+          lastname?: string | null
+          refresh_token: string
+          scope?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          athlete_id?: number
+          avatar_url?: string | null
+          created_at?: string
+          expires_at?: number
+          firstname?: string | null
+          lastname?: string | null
+          refresh_token?: string
+          scope?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
