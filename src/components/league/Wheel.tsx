@@ -53,6 +53,7 @@ export function Wheel({
       const id = requestAnimationFrame(() => setRotation(rotationFor(targetIndex, count, 7)));
       return () => cancelAnimationFrame(id);
     }
+    return undefined;
   }, [spinning, targetIndex, count]);
 
   return (
