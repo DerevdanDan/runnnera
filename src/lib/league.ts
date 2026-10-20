@@ -10,15 +10,20 @@ export function monthKey(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+function parseMonth(month: string): [number, number] {
+  const [y = 1970, m = 1] = month.split("-").map(Number);
+  return [y, m];
+}
+
 export function previousMonthKey(month: string): string {
-  const [y, m] = month.split("-").map(Number);
+  const [y, m] = parseMonth(month);
   const d = new Date(Date.UTC(y, m - 2, 1));
   return monthKey(d);
 }
 
 /** UTC start (inclusive) and end (exclusive) of a month. */
 export function monthBounds(month: string): { start: Date; end: Date } {
-  const [y, m] = month.split("-").map(Number);
+  const [y, m] = parseMonth(month);
   return { start: new Date(Date.UTC(y, m - 1, 1)), end: new Date(Date.UTC(y, m, 1)) };
 }
 
@@ -78,7 +83,7 @@ export function findLoser<T extends Standing>(standings: T[]): T | null {
   const sorted = [...standings].sort(
     (a, b) => a.meters - b.meters || a.runs - b.runs || a.name.localeCompare(b.name),
   );
-  return sorted[0];
+  return sorted[0] ?? null;
 }
 
 export function canAddPunishment(existingCount: number): boolean {

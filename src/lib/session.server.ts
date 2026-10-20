@@ -1,8 +1,8 @@
 import { useSession } from "@tanstack/react-start/server";
 
 export type AppSessionData = {
-  athleteId?: number;
-  oauthState?: string;
+  athleteId?: number | undefined;
+  oauthState?: string | undefined;
 };
 
 function getSessionConfig() {

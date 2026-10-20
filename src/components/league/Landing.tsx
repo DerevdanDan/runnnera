@@ -10,7 +10,7 @@ const ERRORS: Record<string, string> = {
   strava_not_configured: "Strava isn't connected to this app yet.",
 };
 
-export function Landing({ stravaConfigured, error }: { stravaConfigured: boolean; error?: string }) {
+export function Landing({ stravaConfigured, error }: { stravaConfigured: boolean; error?: string | undefined }) {
   const [inFrame, setInFrame] = useState(false);
   useEffect(() => {
     try {

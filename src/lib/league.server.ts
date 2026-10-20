@@ -237,7 +237,8 @@ export async function spinForLastMonth(): Promise<{ punishmentId: string }> {
 
   const pick = new Uint32Array(1);
   crypto.getRandomValues(pick);
-  const chosen = slices[pick[0] % slices.length];
+  const chosen = slices[(pick[0] ?? 0) % slices.length];
+  if (!chosen) throw new Error("No punishments were submitted last month");
 
   const { error } = await db
     .from("spins")
