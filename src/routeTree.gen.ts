@@ -10,18 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiDevLoginTempRouteImport } from './routes/api/dev-login-temp'
 import { Route as ApiPublicStravaCallbackRouteImport } from './routes/api/public/strava/callback'
 import { Route as ApiPublicStravaLoginRouteImport } from './routes/api/public/strava/login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDevLoginTempRoute = ApiDevLoginTempRouteImport.update({
-  id: '/api/dev-login-temp',
-  path: '/api/dev-login-temp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicStravaCallbackRoute = ApiPublicStravaCallbackRouteImport.update({
@@ -37,47 +31,34 @@ const ApiPublicStravaLoginRoute = ApiPublicStravaLoginRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/dev-login-temp': typeof ApiDevLoginTempRoute
   '/api/public/strava/callback': typeof ApiPublicStravaCallbackRoute
   '/api/public/strava/login': typeof ApiPublicStravaLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api/dev-login-temp': typeof ApiDevLoginTempRoute
   '/api/public/strava/callback': typeof ApiPublicStravaCallbackRoute
   '/api/public/strava/login': typeof ApiPublicStravaLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api/dev-login-temp': typeof ApiDevLoginTempRoute
   '/api/public/strava/callback': typeof ApiPublicStravaCallbackRoute
   '/api/public/strava/login': typeof ApiPublicStravaLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/api/dev-login-temp'
-    | '/api/public/strava/callback'
-    | '/api/public/strava/login'
+  fullPaths: '/' | '/api/public/strava/callback' | '/api/public/strava/login'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/api/dev-login-temp'
-    | '/api/public/strava/callback'
-    | '/api/public/strava/login'
+  to: '/' | '/api/public/strava/callback' | '/api/public/strava/login'
   id:
     | '__root__'
     | '/'
-    | '/api/dev-login-temp'
     | '/api/public/strava/callback'
     | '/api/public/strava/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiDevLoginTempRoute: typeof ApiDevLoginTempRoute
   ApiPublicStravaCallbackRoute: typeof ApiPublicStravaCallbackRoute
   ApiPublicStravaLoginRoute: typeof ApiPublicStravaLoginRoute
 }
@@ -89,13 +70,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/dev-login-temp': {
-      id: '/api/dev-login-temp'
-      path: '/api/dev-login-temp'
-      fullPath: '/api/dev-login-temp'
-      preLoaderRoute: typeof ApiDevLoginTempRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/strava/callback': {
@@ -117,7 +91,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiDevLoginTempRoute: ApiDevLoginTempRoute,
   ApiPublicStravaCallbackRoute: ApiPublicStravaCallbackRoute,
   ApiPublicStravaLoginRoute: ApiPublicStravaLoginRoute,
 }
