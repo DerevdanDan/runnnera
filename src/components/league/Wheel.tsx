@@ -16,7 +16,9 @@ const R = C - 8;
 
 function point(angleDeg: number, radius: number) {
   const a = (angleDeg * Math.PI) / 180;
-  return [C + radius * Math.sin(a), C - radius * Math.cos(a)] as const;
+  // Round so server and browser render identical paths (avoids hydration mismatch).
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  return [r2(C + radius * Math.sin(a)), r2(C - radius * Math.cos(a))] as const;
 }
 
 function truncate(s: string, n: number) {
