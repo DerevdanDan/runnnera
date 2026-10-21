@@ -53,6 +53,8 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          pin_hash: string | null
+          pin_salt: string | null
         }
         Insert: {
           athlete_id?: number | null
@@ -60,6 +62,8 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          pin_hash?: string | null
+          pin_salt?: string | null
         }
         Update: {
           athlete_id?: number | null
@@ -67,6 +71,8 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          pin_hash?: string | null
+          pin_salt?: string | null
         }
         Relationships: [
           {
@@ -103,6 +109,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "punishments_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      runs: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          meters: number
+          note: string | null
+          photo_path: string | null
+          player_id: string
+          run_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          meters: number
+          note?: string | null
+          photo_path?: string | null
+          player_id: string
+          run_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          meters?: number
+          note?: string | null
+          photo_path?: string | null
+          player_id?: string
+          run_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "runs_player_id_fkey"
             columns: ["player_id"]
             isOneToOne: false
             referencedRelation: "players"

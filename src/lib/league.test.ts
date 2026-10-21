@@ -51,3 +51,33 @@ describe("league rules", () => {
     expect(previousMonthKey("2026-01")).toBe("2025-12");
   });
 });
+
+import { canEditRun, isValidPin, isValidRunDate, totalsForMonth } from "./league";
+
+describe("manual runs", () => {
+  it("sums only runs in the given month per player", () => {
+    const t = totalsForMonth(
+      [
+        { player_id: "a", run_date: "2026-10-01", meters: 5000 },
+        { player_id: "a", run_date: "2026-10-31", meters: 3000 },
+        { player_id: "a", run_date: "2026-09-30", meters: 9000 },
+      ],
+      "2026-10",
+    );
+    expect(t.get("a")).toEqual({ meters: 8000, runs: 2 });
+  });
+  it("only the owner can edit, and not after the wheel is spun", () => {
+    expect(canEditRun({ isOwner: true, monthSpun: false })).toBe(true);
+    expect(canEditRun({ isOwner: false, monthSpun: false })).toBe(false);
+    expect(canEditRun({ isOwner: true, monthSpun: true })).toBe(false);
+  });
+  it("PIN must be 4 digits", () => {
+    expect(isValidPin("1234")).toBe(true);
+    expect(isValidPin("123")).toBe(false);
+  });
+  it("rejects future run dates", () => {
+    const now = new Date("2026-10-21T12:00:00Z");
+    expect(isValidRunDate("2026-10-21", now)).toBe(true);
+    expect(isValidRunDate("2026-10-25", now)).toBe(false);
+  });
+});

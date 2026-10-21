@@ -93,3 +93,39 @@ export function canAddPunishment(existingCount: number): boolean {
 export function metersToKm(meters: number): number {
   return Math.round(meters / 100) / 10;
 }
+
+// ---- Manual run logging ----
+export const MAX_RUN_KM = 200;
+export const MAX_RUN_NOTE_LENGTH = 280;
+
+/** PINs are exactly 4 digits. */
+export function isValidPin(pin: string): boolean {
+  return /^\d{4}$/.test(pin);
+}
+
+export type LoggedRun = { player_id: string; run_date: string; meters: number };
+
+/** Total meters and run count per player for runs dated (YYYY-MM-DD) inside `month`. */
+export function totalsForMonth(runs: LoggedRun[], month: string): Map<string, { meters: number; runs: number }> {
+  const out = new Map<string, { meters: number; runs: number }>();
+  for (const r of runs) {
+    if (r.run_date.slice(0, 7) !== month) continue;
+    const t = out.get(r.player_id) ?? { meters: 0, runs: 0 };
+    t.meters += r.meters;
+    t.runs += 1;
+    out.set(r.player_id, t);
+  }
+  return out;
+}
+
+/** A run can be edited by its owner until that month's wheel has been spun. */
+export function canEditRun(opts: { isOwner: boolean; monthSpun: boolean }): boolean {
+  return opts.isOwner && !opts.monthSpun;
+}
+
+/** A run date must not be in the future (allow 1 day for time zones). */
+export function isValidRunDate(date: string, now: Date): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const t = Date.parse(`${date}T00:00:00Z`);
+  return !Number.isNaN(t) && t <= now.getTime() + 86_400_000;
+}
