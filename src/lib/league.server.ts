@@ -1,183 +1,136 @@
-import { findLoser, monthBounds, monthKey, previousMonthKey, rankStandings } from "./league";
-import type { Dashboard, StandingRow, WheelSlice } from "./league-types";
+import { canEditRun, findLoser, monthKey, previousMonthKey, rankStandings, totalsForMonth } from "./league";
+import type { Dashboard, FeedRun, StandingRow, WheelSlice } from "./league-types";
 import { getAppSession } from "./session.server";
-import { fetchMonthRuns, getStravaCredentials, getValidAccessToken } from "./strava.server";
 
-const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+export const PHOTO_BUCKET = "run-photos";
+const FEED_LIMIT = 100;
 
-async function admin() {
+export async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
 
-type PlayerRow = {
-  id: string;
-  name: string;
-  athlete_id: number | null;
-  strava_accounts: {
-    athlete_id: number;
-    avatar_url: string | null;
-    access_token: string;
-    refresh_token: string;
-    expires_at: number;
-  } | null;
-};
+type PlayerRow = { id: string; name: string; pin_hash: string | null };
 
 async function loadPlayers(): Promise<PlayerRow[]> {
   const db = await admin();
-  const { data, error } = await db
-    .from("players")
-    .select(
-      "id, name, athlete_id, strava_accounts(athlete_id, avatar_url, access_token, refresh_token, expires_at)",
-    )
-    .order("name");
+  const { data, error } = await db.from("players").select("id, name, pin_hash").order("name");
   if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as PlayerRow[];
-}
-
-/** Session athlete id, or null when signed out. */
-export async function getSessionAthleteId(): Promise<number | null> {
-  const session = await getAppSession();
-  return session.data.athleteId ?? null;
+  return data ?? [];
 }
 
 /** The signed-in player, or throws. */
 export async function requirePlayer(): Promise<{ id: string; name: string }> {
-  const athleteId = await getSessionAthleteId();
-  if (!athleteId) throw new Error("Please sign in with Strava first");
+  const session = await getAppSession();
+  const id = session.data.playerId;
+  if (!id) throw new Error("Please sign in first");
   const db = await admin();
-  const { data } = await db
-    .from("players")
-    .select("id, name")
-    .eq("athlete_id", athleteId)
-    .maybeSingle();
-  if (!data) throw new Error("Pick your name first");
+  const { data } = await db.from("players").select("id, name").eq("id", id).maybeSingle();
+  if (!data) throw new Error("Please sign in first");
   return data;
 }
 
-/** Sync a month's km for every connected player when stale. Returns an error message if any sync failed. */
-async function syncMonth(players: PlayerRow[], month: string): Promise<string | null> {
+async function isMonthSpun(month: string): Promise<boolean> {
   const db = await admin();
-  const { data: rows } = await db
-    .from("monthly_distance")
-    .select("player_id, synced_at")
-    .eq("month", month);
-  const lastSync = new Map((rows ?? []).map((r) => [r.player_id, new Date(r.synced_at).getTime()]));
-  const { end } = monthBounds(month);
-  const now = Date.now();
-  let failure: string | null = null;
+  const { data } = await db.from("spins").select("month").eq("month", month).maybeSingle();
+  return !!data;
+}
 
-  await Promise.all(
-    players.map(async (p) => {
-      if (!p.strava_accounts) return;
-      const last = lastSync.get(p.id);
-      // A finished month synced after it ended (plus a day for late uploads) is final.
-      if (last && last > end.getTime() + 86_400_000) return;
-      if (last && now - last < SYNC_INTERVAL_MS) return;
-      try {
-        const token = await getValidAccessToken(p.strava_accounts, db);
-        const { meters, runs } = await fetchMonthRuns(token, month);
-        await db.from("monthly_distance").upsert({
-          player_id: p.id,
-          month,
-          meters,
-          run_count: runs,
-          synced_at: new Date().toISOString(),
-        });
-      } catch (err) {
-        console.error(`Strava sync failed for ${p.name}`, err);
-        failure = `Couldn't refresh ${p.name}'s Strava runs right now.`;
-      }
-    }),
-  );
-  return failure;
+/** Owner check + month-not-spun check for editing a run. */
+export async function assertCanEditRun(runId: string, meId: string) {
+  const db = await admin();
+  const { data: run } = await db.from("runs").select("id, player_id, run_date, photo_path").eq("id", runId).maybeSingle();
+  if (!run) throw new Error("Run not found");
+  const spun = await isMonthSpun(run.run_date.slice(0, 7));
+  if (!canEditRun({ isOwner: run.player_id === meId, monthSpun: spun })) {
+    throw new Error(spun ? "That month's wheel was already spun" : "You can only edit your own runs");
+  }
+  return run;
 }
 
 async function standingsFor(players: PlayerRow[], month: string): Promise<StandingRow[]> {
   const db = await admin();
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  const end = monthKey(new Date(Date.UTC(y, m, 1)));
   const { data } = await db
-    .from("monthly_distance")
-    .select("player_id, meters, run_count, synced_at")
-    .eq("month", month);
-  const byPlayer = new Map((data ?? []).map((r) => [r.player_id, r]));
+    .from("runs")
+    .select("player_id, run_date, meters")
+    .gte("run_date", `${month}-01`)
+    .lt("run_date", `${end}-01`);
+  const totals = totalsForMonth(data ?? [], month);
   return rankStandings(
-    players
-      .filter((p) => p.athlete_id !== null)
-      .map((p) => {
-        const r = byPlayer.get(p.id);
-        return {
-          playerId: p.id,
-          name: p.name,
-          avatarUrl: p.strava_accounts?.avatar_url ?? null,
-          connected: !!p.strava_accounts,
-          meters: r?.meters ?? 0,
-          runs: r?.run_count ?? 0,
-          syncedAt: r?.synced_at ?? null,
-        };
-      }),
+    players.map((p) => ({
+      playerId: p.id,
+      name: p.name,
+      meters: totals.get(p.id)?.meters ?? 0,
+      runs: totals.get(p.id)?.runs ?? 0,
+    })),
   );
 }
 
-export async function buildDashboard(): Promise<Dashboard> {
-  const athleteId = await getSessionAthleteId();
-  if (!athleteId) return { state: "signed_out", stravaConfigured: !!getStravaCredentials() };
-
+async function loadFeed(players: PlayerRow[], meId: string): Promise<FeedRun[]> {
   const db = await admin();
-  const players = await loadPlayers();
-  const mine = players.find((p) => p.athlete_id === athleteId);
+  const { data } = await db
+    .from("runs")
+    .select("id, player_id, run_date, meters, duration_seconds, note, photo_path, created_at, updated_at")
+    .order("run_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(FEED_LIMIT);
+  const rows = data ?? [];
+  const { data: spins } = await db.from("spins").select("month");
+  const spun = new Set((spins ?? []).map((s) => s.month));
+  const paths = rows.map((r) => r.photo_path).filter((p): p is string => !!p);
+  const urls = new Map<string, string>();
+  if (paths.length) {
+    const { data: signed } = await db.storage.from(PHOTO_BUCKET).createSignedUrls(paths, 60 * 60 * 6);
+    for (const s of signed ?? []) if (s.path && s.signedUrl) urls.set(s.path, s.signedUrl);
+  }
+  const nameOf = new Map(players.map((p) => [p.id, p.name]));
+  return rows.map((r) => ({
+    id: r.id,
+    playerId: r.player_id,
+    name: nameOf.get(r.player_id) ?? "?",
+    runDate: r.run_date,
+    meters: r.meters,
+    durationSeconds: r.duration_seconds,
+    note: r.note,
+    photoUrl: r.photo_path ? (urls.get(r.photo_path) ?? null) : null,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    canEdit: canEditRun({ isOwner: r.player_id === meId, monthSpun: spun.has(r.run_date.slice(0, 7)) }),
+  }));
+}
 
+export async function buildDashboard(): Promise<Dashboard> {
+  const players = await loadPlayers();
+  const session = await getAppSession();
+  const mine = players.find((p) => p.id === session.data.playerId);
   if (!mine) {
-    const { data: account } = await db
-      .from("strava_accounts")
-      .select("firstname, avatar_url")
-      .eq("athlete_id", athleteId)
-      .maybeSingle();
-    if (!account) {
-      // Stale session (account removed) — treat as signed out.
-      const session = await getAppSession();
-      await session.clear();
-      return { state: "signed_out", stravaConfigured: !!getStravaCredentials() };
-    }
     return {
-      state: "needs_claim",
-      athleteName: account.firstname ?? "runner",
-      avatarUrl: account.avatar_url,
-      openSlots: players.filter((p) => p.athlete_id === null).map((p) => ({ id: p.id, name: p.name })),
+      state: "signed_out",
+      players: players.map((p) => ({ id: p.id, name: p.name, hasPin: !!p.pin_hash })),
     };
   }
 
+  const db = await admin();
   const month = monthKey(new Date());
   const prev = previousMonthKey(month);
 
-  const { data: prevSpin } = await db
-    .from("spins")
-    .select("punishment_id, spun_at, loser_player_id")
-    .eq("month", prev)
-    .maybeSingle();
-
-  const syncResults = await Promise.all([
-    syncMonth(players, month),
-    prevSpin ? Promise.resolve(null) : syncMonth(players, prev),
-  ]);
-  const syncError = syncResults.find((e) => e) ?? null;
-
-  const [standings, prevStandings] = await Promise.all([
+  const [{ data: prevSpin }, standings, prevStandings, feed, { data: punishments }] = await Promise.all([
+    db.from("spins").select("punishment_id, spun_at, loser_player_id").eq("month", prev).maybeSingle(),
     standingsFor(players, month),
     standingsFor(players, prev),
+    loadFeed(players, mine.id),
+    db.from("punishments").select("id, player_id, month, text, created_at").in("month", [month, prev]).order("created_at"),
   ]);
-
-  const { data: punishments } = await db
-    .from("punishments")
-    .select("id, player_id, month, text, created_at")
-    .in("month", [month, prev])
-    .order("created_at");
   const nameOf = new Map(players.map((p) => [p.id, p.name]));
 
   const current = (punishments ?? []).filter((p) => p.month === month);
   const myPunishments = current.filter((p) => p.player_id === mine.id).map((p) => ({ id: p.id, text: p.text }));
-  const punishmentCounts = players
-    .filter((p) => p.athlete_id !== null)
-    .map((p) => ({ name: p.name, count: current.filter((x) => x.player_id === p.id).length }));
+  const punishmentCounts = players.map((p) => ({
+    name: p.name,
+    count: current.filter((x) => x.player_id === p.id).length,
+  }));
 
   const wheel: WheelSlice[] = (punishments ?? [])
     .filter((p) => p.month === prev)
@@ -186,9 +139,7 @@ export async function buildDashboard(): Promise<Dashboard> {
   let lastMonth: Extract<Dashboard, { state: "ready" }>["lastMonth"] = null;
   const hadActivity = prevStandings.some((s) => s.meters > 0) || wheel.length > 0 || prevSpin;
   if (hadActivity) {
-    const loserStanding = prevSpin
-      ? prevStandings.find((s) => s.playerId === prevSpin.loser_player_id) ?? null
-      : findLoser(prevStandings);
+    const loserStanding = prevSpin ? null : findLoser(prevStandings);
     const loser = prevSpin
       ? { playerId: prevSpin.loser_player_id, name: nameOf.get(prevSpin.loser_player_id) ?? "?" }
       : loserStanding
@@ -210,13 +161,13 @@ export async function buildDashboard(): Promise<Dashboard> {
 
   return {
     state: "ready",
-    me: { playerId: mine.id, name: mine.name, avatarUrl: mine.strava_accounts?.avatar_url ?? null },
+    me: { playerId: mine.id, name: mine.name },
     month,
     standings,
     myPunishments,
     punishmentCounts,
     lastMonth,
-    syncError,
+    feed,
   };
 }
 
@@ -240,14 +191,31 @@ export async function spinForLastMonth(): Promise<{ punishmentId: string }> {
   const chosen = slices[(pick[0] ?? 0) % slices.length];
   if (!chosen) throw new Error("No punishments were submitted last month");
 
-  const { error } = await db
-    .from("spins")
-    .insert({ month: prev, loser_player_id: me.id, punishment_id: chosen.id });
+  const { error } = await db.from("spins").insert({ month: prev, loser_player_id: me.id, punishment_id: chosen.id });
   if (error) {
-    // Lost a race with a concurrent spin — return the stored result.
     const { data: again } = await db.from("spins").select("punishment_id").eq("month", prev).maybeSingle();
     if (again) return { punishmentId: again.punishment_id };
     throw new Error(error.message);
   }
   return { punishmentId: chosen.id };
+}
+
+/** Decode a data URL image and upload it; returns the storage path. */
+export async function uploadPhoto(playerId: string, dataUrl: string): Promise<string> {
+  const m = /^data:(image\/(jpeg|png|webp));base64,(.+)$/.exec(dataUrl);
+  if (!m) throw new Error("Screenshot must be a JPEG, PNG or WebP image");
+  const bytes = Uint8Array.from(atob(m[3]!), (c) => c.charCodeAt(0));
+  if (bytes.byteLength > 6 * 1024 * 1024) throw new Error("Screenshot is too large (max 6 MB)");
+  const ext = m[2] === "jpeg" ? "jpg" : m[2];
+  const path = `${playerId}/${crypto.randomUUID()}.${ext}`;
+  const db = await admin();
+  const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, bytes, { contentType: m[1] });
+  if (error) throw new Error("Couldn't upload the screenshot");
+  return path;
+}
+
+export async function removePhoto(path: string | null) {
+  if (!path) return;
+  const db = await admin();
+  await db.storage.from(PHOTO_BUCKET).remove([path]);
 }
