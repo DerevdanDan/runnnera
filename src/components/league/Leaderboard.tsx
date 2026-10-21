@@ -21,13 +21,11 @@ export function Leaderboard({ standings, meId }: { standings: StandingRow[]; meI
             />
             <div className="relative flex items-center gap-4">
               <span className="w-8 font-display text-4xl text-muted-foreground">{i + 1}</span>
-              {s.avatarUrl ? (
-                <img src={s.avatarUrl} alt="" className="h-11 w-11 rounded-full border border-border object-cover" />
-              ) : (
+              
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary font-display text-xl">
                   {s.name[0]}
                 </div>
-              )}
+              
               <div className="min-w-0 flex-1">
                 <p className="font-display text-3xl leading-none tracking-wide">
                   {s.name}
@@ -48,7 +46,7 @@ export function Leaderboard({ standings, meId }: { standings: StandingRow[]; meI
       })}
       {standings.length < 3 && (
         <li className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-          Waiting for {3 - standings.length} more {standings.length === 2 ? "runner" : "runners"} to connect Strava.
+          Waiting for {3 - standings.length} more {standings.length === 2 ? "runner" : "runners"} to join.
         </li>
       )}
     </ol>

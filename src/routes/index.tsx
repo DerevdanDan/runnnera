@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import { ClaimName } from "@/components/league/ClaimName";
 import { Landing } from "@/components/league/Landing";
 import { LastMonth } from "@/components/league/LastMonth";
 import { Leaderboard } from "@/components/league/Leaderboard";
 import { Punishments } from "@/components/league/Punishments";
+import { RunFeed } from "@/components/league/RunFeed";
 import { daysLeftInMonth, formatMonth } from "@/lib/league";
 import { getDashboard, signOut } from "@/lib/league.functions";
 
@@ -16,19 +15,18 @@ const dashboardQuery = queryOptions({
 });
 
 export const Route = createFileRoute("/")({
-  validateSearch: z.object({ error: z.string().optional() }),
   head: () => ({
     meta: [
-      { title: "Last Place Spins — monthly Strava running league" },
+      { title: "Last Place Spins — monthly running league" },
       {
         name: "description",
         content:
-          "Alvaro, Daniil and Mario race their monthly Strava kilometres. Last place spins the punishment wheel.",
+          "Alvaro, Daniil and Mario log their runs every month. Last place spins the punishment wheel.",
       },
-      { property: "og:title", content: "Last Place Spins — monthly Strava running league" },
+      { property: "og:title", content: "Last Place Spins — monthly running league" },
       {
         property: "og:description",
-        content: "Every run on Strava counts. Fewest kilometres at month end spins the punishment wheel.",
+        content: "Log every run with a screenshot. Fewest kilometres at month end spins the punishment wheel.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -40,11 +38,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { data } = useSuspenseQuery(dashboardQuery);
-  const { error } = Route.useSearch();
-
-  if (data.state === "signed_out") return <Landing stravaConfigured={data.stravaConfigured} error={error} />;
-  if (data.state === "needs_claim")
-    return <ClaimName athleteName={data.athleteName} openSlots={data.openSlots} />;
+  if (data.state === "signed_out") return <Landing players={data.players} />;
 
   return <DashboardView data={data} />;
 }
@@ -59,9 +53,6 @@ function DashboardView({ data }: { data: Extract<Awaited<ReturnType<typeof getDa
       <header className="flex items-center justify-between gap-4">
         <p className="font-display text-2xl tracking-[0.2em] text-primary">Last Place Spins</p>
         <div className="flex items-center gap-3">
-          {data.me.avatarUrl && (
-            <img src={data.me.avatarUrl} alt="" className="h-9 w-9 rounded-full border border-border object-cover" />
-          )}
           <span className="text-sm font-semibold">{data.me.name}</span>
           <button
             className="text-sm text-muted-foreground hover:text-foreground"
@@ -90,12 +81,15 @@ function DashboardView({ data }: { data: Extract<Awaited<ReturnType<typeof getDa
             </p>
           </div>
           <p className="mb-5 mt-2 text-sm text-muted-foreground">
-            Runs, trail runs and treadmill runs from Strava. Refreshes every 10 minutes.
+            Runs logged this month by everyone.
           </p>
-          {data.syncError && <p className="mb-4 text-sm text-destructive">{data.syncError}</p>}
           <Leaderboard standings={data.standings} meId={data.me.playerId} />
         </section>
         <Punishments month={data.month} mine={data.myPunishments} counts={data.punishmentCounts} />
+      </div>
+
+      <div className="mt-12">
+        <RunFeed feed={data.feed} />
       </div>
     </main>
   );

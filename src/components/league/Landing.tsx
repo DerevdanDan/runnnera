@@ -1,24 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { PLAYER_NAMES } from "@/lib/league";
+import { Input } from "@/components/ui/input";
+import { signIn } from "@/lib/league.functions";
 
-const ERRORS: Record<string, string> = {
-  strava_denied: "Strava access was cancelled. Approve access to your activities to join.",
-  strava_scope: "Please tick “View data about your activities” on the Strava screen so your runs can be counted.",
-  strava_state: "That sign-in link expired. Please try again.",
-  strava_failed: "Something went wrong talking to Strava. Please try again.",
-  strava_not_configured: "Strava isn't connected to this app yet.",
-};
+type P = { id: string; name: string; hasPin: boolean };
 
-export function Landing({ stravaConfigured, error }: { stravaConfigured: boolean; error?: string | undefined }) {
-  const [inFrame, setInFrame] = useState(false);
-  useEffect(() => {
-    try {
-      setInFrame(window.self !== window.top);
-    } catch {
-      setInFrame(true);
-    }
-  }, []);
+export function Landing({ players }: { players: P[] }) {
+  const login = useServerFn(signIn);
+  const qc = useQueryClient();
+  const [picked, setPicked] = useState<P | null>(null);
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
@@ -29,37 +24,71 @@ export function Landing({ stravaConfigured, error }: { stravaConfigured: boolean
         <span className="bg-gradient-primary bg-clip-text text-transparent">spins.</span>
       </h1>
       <p className="mt-8 max-w-xl text-lg text-muted-foreground">
-        {PLAYER_NAMES.join(", ")}. Every run on Strava counts. Whoever logs the fewest kilometres by the end
-        of the month spins the wheel — loaded with punishments you all wrote on day one.
+        Log every run with a screenshot. Whoever has the fewest kilometres at the end of the month spins the
+        wheel — loaded with punishments you all wrote.
       </p>
 
-      <div className="mt-10 flex flex-col items-start gap-4">
-        {error && ERRORS[error] && (
-          <p className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-foreground">
-            {ERRORS[error]}
-          </p>
-        )}
-        {!stravaConfigured ? (
-          <p className="rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-            Waiting for the Strava app keys to be added — sign-in will appear here once they're in.
-          </p>
-        ) : inFrame ? (
-          <div className="flex flex-col gap-2">
-            <Button asChild size="lg" className="h-14 bg-gradient-primary px-8 text-base font-semibold shadow-glow">
-              <a href="/" target="_blank" rel="noreferrer">
-                Open the app in a new tab to connect Strava
-              </a>
+      <div className="mt-10 max-w-xl">
+        <p className="mb-3 text-sm font-semibold">Who are you?</p>
+        <div className="grid grid-cols-3 gap-3">
+          {players.map((p) => (
+            <Button
+              key={p.id}
+              variant={picked?.id === p.id ? "default" : "secondary"}
+              className="h-16 font-display text-2xl tracking-wide"
+              onClick={() => {
+                setPicked(p);
+                setPin("");
+              }}
+            >
+              {p.name}
             </Button>
-            <p className="text-sm text-muted-foreground">Strava sign-in doesn't work inside this preview window.</p>
-          </div>
-        ) : (
-          <Button asChild size="lg" className="h-14 bg-gradient-primary px-8 text-base font-semibold shadow-glow">
-            <a href="/api/public/strava/login">Connect with Strava</a>
-          </Button>
+          ))}
+        </div>
+
+        {picked && (
+          <form
+            className="mt-6 flex flex-col gap-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setBusy(true);
+              try {
+                await login({ data: { playerId: picked.id, pin } });
+                await qc.invalidateQueries({ queryKey: ["dashboard"] });
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Couldn't sign in");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <label htmlFor="pin" className="text-sm text-muted-foreground">
+              {picked.hasPin
+                ? `Enter ${picked.name}'s 4-digit PIN`
+                : `First time? Choose a 4-digit PIN for ${picked.name} — you'll use it to sign in.`}
+            </label>
+            <div className="flex gap-3">
+              <Input
+                id="pin"
+                inputMode="numeric"
+                type="password"
+                autoComplete={picked.hasPin ? "current-password" : "new-password"}
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                className="h-14 w-40 text-center text-2xl tracking-[0.5em]"
+                autoFocus
+              />
+              <Button
+                type="submit"
+                disabled={pin.length !== 4 || busy}
+                className="h-14 bg-gradient-primary px-8 text-base font-semibold shadow-glow"
+              >
+                {busy ? "…" : picked.hasPin ? "Sign in" : "Set PIN & join"}
+              </Button>
+            </div>
+          </form>
         )}
-        <p className="text-xs text-muted-foreground">
-          We only read your activities to total your running distance.
-        </p>
       </div>
     </main>
   );
