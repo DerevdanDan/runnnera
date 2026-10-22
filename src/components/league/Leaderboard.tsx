@@ -1,7 +1,7 @@
 import { metersToKm } from "@/lib/league";
 import type { StandingRow } from "@/lib/league-types";
 
-export function Leaderboard({ standings, meId }: { standings: StandingRow[]; meId: string }) {
+export function Leaderboard({ standings, meId }: { standings: StandingRow[]; meId: string | null }) {
   const top = Math.max(1, ...standings.map((s) => s.meters));
   return (
     <ol className="flex flex-col gap-3">
@@ -44,11 +44,6 @@ export function Leaderboard({ standings, meId }: { standings: StandingRow[]; meI
           </li>
         );
       })}
-      {standings.length < 3 && (
-        <li className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-          Waiting for {3 - standings.length} more {standings.length === 2 ? "runner" : "runners"} to join.
-        </li>
-      )}
     </ol>
   );
 }

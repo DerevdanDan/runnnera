@@ -18,7 +18,7 @@ function duration(sec: number) {
   return h ? `${h}h ${m}m` : `${m} min`;
 }
 
-export function RunFeed({ feed }: { feed: FeedRun[] }) {
+export function RunFeed({ feed, canLog = true }: { feed: FeedRun[]; canLog?: boolean }) {
   const [editing, setEditing] = useState<FeedRun | null>(null);
   const [adding, setAdding] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
@@ -27,13 +27,13 @@ export function RunFeed({ feed }: { feed: FeedRun[] }) {
     <section>
       <div className="flex items-end justify-between gap-4">
         <h2 className="font-display text-5xl leading-none">Run feed</h2>
-        <Button onClick={() => setAdding(true)} className="bg-gradient-primary font-semibold shadow-glow">
+        {canLog && <Button onClick={() => setAdding(true)} className="bg-gradient-primary font-semibold shadow-glow">
           + Log a run
-        </Button>
+        </Button>}
       </div>
       {feed.length === 0 ? (
         <p className="mt-5 rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-          No runs yet. Be the first to log one.
+          No runs logged yet.
         </p>
       ) : (
         <ul className="mt-5 grid gap-4 sm:grid-cols-2">

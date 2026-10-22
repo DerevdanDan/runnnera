@@ -6,4 +6,8 @@
 - [x] Monthly leaderboard
 - [x] Punishment submissions (3 per player per month)
 - [x] Month-end wheel for the player with least km
-- [ ] Strava API keys from user (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET) — waiting on user
+- [x] Strava dropped (friends are free members)
+- [x] Replace Strava with name + PIN sign-in and manual run logging
+- [x] Screenshot upload per run + public run feed, owner can edit
+- [x] Daniil (admin) can add new people
+- [x] Leaderboard + feed visible to everyone without signing in

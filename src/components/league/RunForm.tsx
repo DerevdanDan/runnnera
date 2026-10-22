@@ -73,8 +73,14 @@ export function RunForm({
           onSubmit={async (e) => {
             e.preventDefault();
             const kmNum = Number(km.replace(",", "."));
-            if (!(kmNum > 0)) return toast.error("Enter the distance in km");
-            if (!run && !photo) return toast.error("Add a screenshot of your run");
+            if (!(kmNum > 0)) {
+              toast.error("Enter the distance in km");
+              return;
+            }
+            if (!run && !photo) {
+              toast.error("Add a screenshot of your run");
+              return;
+            }
             setBusy(true);
             try {
               const payload = {

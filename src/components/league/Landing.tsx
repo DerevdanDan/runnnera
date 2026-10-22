@@ -16,7 +16,7 @@ export function Landing({ players }: { players: P[] }) {
   const [busy, setBusy] = useState(false);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
+    <main className="mx-auto flex max-w-5xl flex-col justify-center px-6 py-16">
       <p className="font-display text-xl tracking-[0.3em] text-primary">Monthly running league</p>
       <h1 className="mt-3 font-display text-[clamp(4rem,14vw,10rem)] leading-[0.85] text-foreground">
         Last place
@@ -30,7 +30,7 @@ export function Landing({ players }: { players: P[] }) {
 
       <div className="mt-10 max-w-xl">
         <p className="mb-3 text-sm font-semibold">Who are you?</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {players.map((p) => (
             <Button
               key={p.id}

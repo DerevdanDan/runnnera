@@ -31,10 +31,16 @@ export type FeedRun = {
 };
 
 export type Dashboard =
-  | { state: "signed_out"; players: { id: string; name: string; hasPin: boolean }[] }
+  | {
+      state: "signed_out";
+      players: { id: string; name: string; hasPin: boolean }[];
+      month: string;
+      standings: StandingRow[];
+      feed: FeedRun[];
+    }
   | {
       state: "ready";
-      me: { playerId: string; name: string };
+      me: { playerId: string; name: string; isAdmin: boolean };
       month: string;
       standings: StandingRow[];
       myPunishments: { id: string; text: string }[];
