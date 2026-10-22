@@ -152,6 +152,19 @@ export const deletePunishment = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const addPlayer = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ name: z.string().trim().min(1).max(30) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { admin, requireAdmin } = await import("./league.server");
+    await requireAdmin();
+    const db = await admin();
+    const { error } = await db.from("players").insert({ name: data.name });
+    if (error) throw new Error(error.code === "23505" ? "That name is already in the challenge" : error.message);
+    return { ok: true };
+  });
+
 export const spinWheel = createServerFn({ method: "POST" }).handler(async () => {
   const { spinForLastMonth } = await import("./league.server");
   return spinForLastMonth();

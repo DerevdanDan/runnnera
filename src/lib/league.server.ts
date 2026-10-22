@@ -10,16 +10,23 @@ export async function admin() {
   return supabaseAdmin;
 }
 
-type PlayerRow = { id: string; name: string; pin_hash: string | null };
+type PlayerRow = { id: string; name: string; pin_hash: string | null; is_admin: boolean };
 
 async function loadPlayers(): Promise<PlayerRow[]> {
   const db = await admin();
-  const { data, error } = await db.from("players").select("id, name, pin_hash").order("name");
+  const { data, error } = await db.from("players").select("id, name, pin_hash, is_admin").order("name");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
 /** The signed-in player, or throws. */
+export async function requireAdmin(): Promise<void> {
+  const me = await requirePlayer();
+  const db = await admin();
+  const { data } = await db.from("players").select("is_admin").eq("id", me.id).maybeSingle();
+  if (!data?.is_admin) throw new Error("Only the admin can do that");
+}
+
 export async function requirePlayer(): Promise<{ id: string; name: string }> {
   const session = await getAppSession();
   const id = session.data.playerId;
@@ -68,7 +75,7 @@ async function standingsFor(players: PlayerRow[], month: string): Promise<Standi
   );
 }
 
-async function loadFeed(players: PlayerRow[], meId: string): Promise<FeedRun[]> {
+async function loadFeed(players: PlayerRow[], meId: string | null): Promise<FeedRun[]> {
   const db = await admin();
   const { data } = await db
     .from("runs")
@@ -106,9 +113,14 @@ export async function buildDashboard(): Promise<Dashboard> {
   const session = await getAppSession();
   const mine = players.find((p) => p.id === session.data.playerId);
   if (!mine) {
+    const month = monthKey(new Date());
+    const [standings, feed] = await Promise.all([standingsFor(players, month), loadFeed(players, null)]);
     return {
       state: "signed_out",
       players: players.map((p) => ({ id: p.id, name: p.name, hasPin: !!p.pin_hash })),
+      month,
+      standings,
+      feed,
     };
   }
 
@@ -161,7 +173,7 @@ export async function buildDashboard(): Promise<Dashboard> {
 
   return {
     state: "ready",
-    me: { playerId: mine.id, name: mine.name },
+    me: { playerId: mine.id, name: mine.name, isAdmin: mine.is_admin },
     month,
     standings,
     myPunishments,
@@ -209,7 +221,7 @@ export async function uploadPhoto(playerId: string, dataUrl: string): Promise<st
   const ext = m[2] === "jpeg" ? "jpg" : m[2];
   const path = `${playerId}/${crypto.randomUUID()}.${ext}`;
   const db = await admin();
-  const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, bytes, { contentType: m[1] });
+  const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, bytes, { contentType: m[1] ?? "image/jpeg" });
   if (error) throw new Error("Couldn't upload the screenshot");
   return path;
 }
