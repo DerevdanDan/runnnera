@@ -16,7 +16,7 @@ export function Landing({ players }: { players: P[] }) {
   const [busy, setBusy] = useState(false);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-16">
+    <main className="mx-auto flex max-w-5xl flex-col justify-center px-6 py-16">
       <p className="font-display text-xl tracking-[0.3em] text-primary">Monthly running league</p>
       <h1 className="mt-3 font-display text-[clamp(4rem,14vw,10rem)] leading-[0.85] text-foreground">
         Last place

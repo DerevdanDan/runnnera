@@ -5,6 +5,7 @@ import { Landing } from "@/components/league/Landing";
 import { LastMonth } from "@/components/league/LastMonth";
 import { Leaderboard } from "@/components/league/Leaderboard";
 import { Punishments } from "@/components/league/Punishments";
+import { AddPlayer } from "@/components/league/AddPlayer";
 import { RunFeed } from "@/components/league/RunFeed";
 import { daysLeftInMonth, formatMonth } from "@/lib/league";
 import { getDashboard, signOut } from "@/lib/league.functions";
@@ -38,7 +39,20 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { data } = useSuspenseQuery(dashboardQuery);
-  if (data.state === "signed_out") return <Landing players={data.players} />;
+  if (data.state === "signed_out")
+    return (
+      <>
+        <Landing players={data.players} />
+        <main className="mx-auto max-w-6xl px-5 pb-16">
+          <h2 className="font-display text-5xl leading-none">{formatMonth(data.month)}</h2>
+          <p className="mb-5 mt-2 text-sm text-muted-foreground">Who has run how much this month.</p>
+          <Leaderboard standings={data.standings} meId={null} />
+          <div className="mt-12">
+            <RunFeed feed={data.feed} canLog={false} />
+          </div>
+        </main>
+      </>
+    );
 
   return <DashboardView data={data} />;
 }
@@ -87,6 +101,12 @@ function DashboardView({ data }: { data: Extract<Awaited<ReturnType<typeof getDa
         </section>
         <Punishments month={data.month} mine={data.myPunishments} counts={data.punishmentCounts} />
       </div>
+
+      {data.me.isAdmin && (
+        <div className="mt-12">
+          <AddPlayer />
+        </div>
+      )}
 
       <div className="mt-12">
         <RunFeed feed={data.feed} />
