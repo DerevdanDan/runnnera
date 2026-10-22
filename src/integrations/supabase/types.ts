@@ -52,6 +52,7 @@ export type Database = {
           claimed_at: string | null
           created_at: string
           id: string
+          is_admin: boolean
           name: string
           pin_hash: string | null
           pin_salt: string | null
@@ -61,6 +62,7 @@ export type Database = {
           claimed_at?: string | null
           created_at?: string
           id?: string
+          is_admin?: boolean
           name: string
           pin_hash?: string | null
           pin_salt?: string | null
@@ -70,6 +72,7 @@ export type Database = {
           claimed_at?: string | null
           created_at?: string
           id?: string
+          is_admin?: boolean
           name?: string
           pin_hash?: string | null
           pin_salt?: string | null
