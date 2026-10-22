@@ -30,7 +30,7 @@ export function Landing({ players }: { players: P[] }) {
 
       <div className="mt-10 max-w-xl">
         <p className="mb-3 text-sm font-semibold">Who are you?</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {players.map((p) => (
             <Button
               key={p.id}

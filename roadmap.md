@@ -7,7 +7,7 @@
 - [x] Punishment submissions (3 per player per month)
 - [x] Month-end wheel for the player with least km
 - [x] Strava dropped (friends are free members)
-- [ ] Replace Strava with name + PIN sign-in and manual run logging
-- [ ] Screenshot upload per run + public run feed, owner can edit
-- [ ] Daniil (admin) can add new people
-- [ ] Leaderboard + feed visible to everyone without signing in
+- [x] Replace Strava with name + PIN sign-in and manual run logging
+- [x] Screenshot upload per run + public run feed, owner can edit
+- [x] Daniil (admin) can add new people
+- [x] Leaderboard + feed visible to everyone without signing in
