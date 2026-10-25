@@ -51,31 +51,37 @@ export type Database = {
           athlete_id: number | null
           claimed_at: string | null
           created_at: string
+          email: string | null
           id: string
           is_admin: boolean
           name: string
           pin_hash: string | null
           pin_salt: string | null
+          user_id: string | null
         }
         Insert: {
           athlete_id?: number | null
           claimed_at?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           is_admin?: boolean
           name: string
           pin_hash?: string | null
           pin_salt?: string | null
+          user_id?: string | null
         }
         Update: {
           athlete_id?: number | null
           claimed_at?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           is_admin?: boolean
           name?: string
           pin_hash?: string | null
           pin_salt?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MAX_PUNISHMENT_LENGTH } from "./league";
 
 export const getDashboard = createServerFn({ method: "GET" }).handler(async () => {
@@ -7,38 +8,43 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
   return buildDashboard();
 });
 
-export const signIn = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z.object({ playerId: z.string().uuid(), pin: z.string() }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    const { isValidPin } = await import("./league");
-    const { admin } = await import("./league.server");
-    const { getAppSession, hashPin, newSalt } = await import("./session.server");
-    if (!isValidPin(data.pin)) throw new Error("PIN must be 4 digits");
+/**
+ * Called right after Google sign-in. Signs straight in if this Google account already owns a name,
+ * otherwise returns the names nobody has claimed yet so the person can pick theirs.
+ */
+export const linkGoogleAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { admin, startSession } = await import("./league.server");
     const db = await admin();
-    const { data: player } = await db
-      .from("players")
-      .select("id, pin_hash, pin_salt")
-      .eq("id", data.playerId)
-      .maybeSingle();
-    if (!player) throw new Error("Unknown player");
-    if (!player.pin_hash || !player.pin_salt) {
-      // First sign-in: this PIN becomes the player's PIN (only if still unset).
-      const salt = newSalt();
-      const { data: set } = await db
-        .from("players")
-        .update({ pin_hash: await hashPin(data.pin, salt), pin_salt: salt, claimed_at: new Date().toISOString() })
-        .eq("id", player.id)
-        .is("pin_hash", null)
-        .select("id")
-        .maybeSingle();
-      if (!set) throw new Error("That name was just claimed — try again with its PIN");
-    } else if ((await hashPin(data.pin, player.pin_salt)) !== player.pin_hash) {
-      throw new Error("Wrong PIN");
+    const { data: mine } = await db.from("players").select("id").eq("user_id", context.userId).maybeSingle();
+    if (mine) {
+      await startSession(mine.id, context.userId);
+      return { status: "signed_in" as const, unclaimed: [] };
     }
-    const session = await getAppSession();
-    await session.update({ playerId: player.id });
+    const { data: unclaimed } = await db.from("players").select("id, name").is("user_id", null).order("name");
+    return { status: "pick" as const, unclaimed: unclaimed ?? [] };
+  });
+
+export const claimPlayer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ playerId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { admin, startSession } = await import("./league.server");
+    const db = await admin();
+    const email = typeof context.claims.email === "string" ? context.claims.email : null;
+    const { data: claimed, error } = await db
+      .from("players")
+      .update({ user_id: context.userId, email, claimed_at: new Date().toISOString() })
+      .eq("id", data.playerId)
+      .is("user_id", null)
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      throw new Error(error.code === "23505" ? "This Google account is already linked to another name" : error.message);
+    }
+    if (!claimed) throw new Error("Someone already picked that name. Ask the admin if that's wrong.");
+    await startSession(claimed.id, context.userId);
     return { ok: true };
   });
 
@@ -162,6 +168,22 @@ export const addPlayer = createServerFn({ method: "POST" })
     const db = await admin();
     const { error } = await db.from("players").insert({ name: data.name });
     if (error) throw new Error(error.code === "23505" ? "That name is already in the challenge" : error.message);
+    return { ok: true };
+  });
+
+/** Admin: free up a name so someone else can claim it (e.g. the wrong person picked it). */
+export const resetPlayerLogin = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ playerId: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { admin, requireAdmin } = await import("./league.server");
+    const me = await requireAdmin();
+    if (me.id === data.playerId) throw new Error("You can't reset your own sign-in");
+    const db = await admin();
+    const { error } = await db
+      .from("players")
+      .update({ user_id: null, email: null, claimed_at: null })
+      .eq("id", data.playerId);
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 

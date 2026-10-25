@@ -6,35 +6,44 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MAX_PUNISHMENTS_PER_MONTH, MAX_PUNISHMENT_LENGTH, formatMonth } from "@/lib/league";
+import type { PunishmentRow, StandingRow } from "@/lib/league-types";
 import { addPunishment, deletePunishment } from "@/lib/league.functions";
 
 export function Punishments({
   month,
-  mine,
-  counts,
+  meId,
+  punishments,
+  people,
 }: {
   month: string;
-  mine: { id: string; text: string }[];
-  counts: { name: string; count: number }[];
+  meId: string;
+  punishments: PunishmentRow[];
+  /** Everyone in the league, so people who haven't added any yet still show up. */
+  people: Pick<StandingRow, "playerId" | "name">[];
 }) {
   const add = useServerFn(addPunishment);
   const remove = useServerFn(deletePunishment);
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const mine = punishments.filter((p) => p.playerId === meId);
   const remaining = MAX_PUNISHMENTS_PER_MONTH - mine.length;
+  const others = people
+    .filter((p) => p.playerId !== meId)
+    .map((p) => ({ ...p, items: punishments.filter((x) => x.playerId === p.playerId) }));
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["dashboard"] });
 
   return (
     <section className="rounded-2xl border border-border bg-card p-6">
-      <h2 className="font-display text-4xl tracking-wide">Your punishments</h2>
+      <h2 className="font-display text-4xl tracking-wide">Punishments</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Add {MAX_PUNISHMENTS_PER_MONTH} for {formatMonth(month)}. They're secret until the wheel comes out — and
-        yours go on it too.
+        Everyone adds {MAX_PUNISHMENTS_PER_MONTH} for {formatMonth(month)}. They all go on the wheel, yours
+        included.
       </p>
 
-      <ul className="mt-5 flex flex-col gap-2">
+      <h3 className="mt-5 text-sm font-semibold">Yours</h3>
+      <ul className="mt-2 flex flex-col gap-2">
         {mine.map((p, i) => (
           <li key={p.id} className="flex items-center gap-3 rounded-lg bg-secondary px-4 py-3">
             <span className="font-display text-2xl text-primary">{i + 1}</span>
@@ -59,7 +68,7 @@ export function Punishments({
 
       {remaining > 0 ? (
         <form
-          className="mt-4 flex gap-2"
+          className="mt-3 flex gap-2"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!text.trim()) return;
@@ -87,21 +96,30 @@ export function Punishments({
           </Button>
         </form>
       ) : (
-        <p className="mt-4 text-sm text-accent">All 3 in. Now go run.</p>
+        <p className="mt-3 text-sm text-accent">All 3 in. Now go run.</p>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-2 border-t border-border pt-4">
-        {counts.map((c) => (
-          <span
-            key={c.name}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              c.count >= MAX_PUNISHMENTS_PER_MONTH
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-muted-foreground"
-            }`}
-          >
-            {c.name} {c.count}/{MAX_PUNISHMENTS_PER_MONTH}
-          </span>
+      <div className="mt-6 flex flex-col gap-4 border-t border-border pt-4">
+        {others.map((o) => (
+          <div key={o.playerId}>
+            <h3 className="flex items-baseline justify-between text-sm font-semibold">
+              {o.name}
+              <span
+                className={`text-xs ${o.items.length >= MAX_PUNISHMENTS_PER_MONTH ? "text-accent" : "text-muted-foreground"}`}
+              >
+                {o.items.length}/{MAX_PUNISHMENTS_PER_MONTH}
+              </span>
+            </h3>
+            {o.items.length === 0 ? (
+              <p className="mt-1 text-sm text-muted-foreground">Nothing yet.</p>
+            ) : (
+              <ul className="mt-1 flex flex-col gap-1 text-sm text-muted-foreground">
+                {o.items.map((p) => (
+                  <li key={p.id}>· {p.text}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         ))}
       </div>
     </section>

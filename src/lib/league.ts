@@ -1,9 +1,7 @@
 // Pure, browser-safe league rules shared by server and UI.
 
-export const PLAYER_NAMES = ["Alvaro", "Daniil", "Mario"] as const;
 export const MAX_PUNISHMENTS_PER_MONTH = 3;
 export const MAX_PUNISHMENT_LENGTH = 140;
-export const RUN_SPORT_TYPES = ["Run", "TrailRun", "VirtualRun"] as const;
 
 /** "YYYY-MM" for a date, in UTC. */
 export function monthKey(date: Date): string {
@@ -35,34 +33,6 @@ export function daysLeftInMonth(now: Date): number {
 export function formatMonth(month: string): string {
   const { start } = monthBounds(month);
   return start.toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
-}
-
-export type StravaActivityLite = {
-  sport_type?: string;
-  type?: string;
-  distance: number; // meters
-  start_date_local: string; // e.g. "2026-10-05T07:00:00Z"
-};
-
-export function isRun(a: StravaActivityLite): boolean {
-  const t = a.sport_type ?? a.type ?? "";
-  return (RUN_SPORT_TYPES as readonly string[]).includes(t);
-}
-
-/** Total running meters and run count for activities whose local start falls in `month`. */
-export function sumRunsForMonth(
-  activities: StravaActivityLite[],
-  month: string,
-): { meters: number; runs: number } {
-  let meters = 0;
-  let runs = 0;
-  for (const a of activities) {
-    if (!isRun(a)) continue;
-    if (a.start_date_local.slice(0, 7) !== month) continue;
-    meters += a.distance;
-    runs += 1;
-  }
-  return { meters, runs };
 }
 
 export type Standing = { playerId: string; name: string; meters: number; runs: number };
@@ -97,11 +67,6 @@ export function metersToKm(meters: number): number {
 // ---- Manual run logging ----
 export const MAX_RUN_KM = 200;
 export const MAX_RUN_NOTE_LENGTH = 280;
-
-/** PINs are exactly 4 digits. */
-export function isValidPin(pin: string): boolean {
-  return /^\d{4}$/.test(pin);
-}
 
 export type LoggedRun = { player_id: string; run_date: string; meters: number };
 

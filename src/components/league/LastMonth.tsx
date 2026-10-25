@@ -63,6 +63,7 @@ export function LastMonth({ result, meId }: { result: LastMonthResult; meId: str
               <div>
                 <p className="text-muted-foreground">
                   {result.wheel.length} punishments loaded. No backing out.
+                  {!loserIsMe && ` ${result.loser?.name} hasn't spun yet, so you can spin for them.`}
                 </p>
                 <Button
                   size="lg"
@@ -78,7 +79,7 @@ export function LastMonth({ result, meId }: { result: LastMonthResult; meId: str
                     }
                   }}
                 >
-                  {spinning ? "Spinning…" : "Spin the wheel"}
+                  {spinning ? "Spinning…" : loserIsMe ? "Spin the wheel" : `Spin for ${result.loser?.name}`}
                 </Button>
               </div>
             ) : spinning ? (

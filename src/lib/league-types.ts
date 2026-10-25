@@ -7,6 +7,11 @@ export type StandingRow = {
 
 export type WheelSlice = { id: string; text: string; author: string };
 
+export type PunishmentRow = { id: string; text: string; playerId: string; author: string };
+
+/** What the admin sees about each person: which names have been claimed, and by which Google account. */
+export type Person = { id: string; name: string; email: string | null; claimed: boolean; isAdmin: boolean };
+
 export type LastMonthResult = {
   month: string;
   standings: StandingRow[];
@@ -33,7 +38,6 @@ export type FeedRun = {
 export type Dashboard =
   | {
       state: "signed_out";
-      players: { id: string; name: string; hasPin: boolean }[];
       month: string;
       standings: StandingRow[];
       feed: FeedRun[];
@@ -43,8 +47,10 @@ export type Dashboard =
       me: { playerId: string; name: string; isAdmin: boolean };
       month: string;
       standings: StandingRow[];
-      myPunishments: { id: string; text: string }[];
-      punishmentCounts: { name: string; count: number }[];
+      /** Everyone's punishments for the current month (visible to all signed-in players). */
+      punishments: PunishmentRow[];
+      /** Admin only. */
+      people: Person[] | null;
       lastMonth: LastMonthResult | null;
       feed: FeedRun[];
     };

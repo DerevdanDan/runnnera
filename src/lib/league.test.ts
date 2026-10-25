@@ -3,15 +3,9 @@ import {
   canAddPunishment,
   findLoser,
   previousMonthKey,
-  sumRunsForMonth,
-  PLAYER_NAMES,
 } from "./league";
 
 describe("league rules", () => {
-  it("has exactly Alvaro, Daniil and Mario as players", () => {
-    expect([...PLAYER_NAMES]).toEqual(["Alvaro", "Daniil", "Mario"]);
-  });
-
   it("the player with the least km must spin", () => {
     const loser = findLoser([
       { playerId: "a", name: "Alvaro", meters: 52_000, runs: 6 },
@@ -34,25 +28,12 @@ describe("league rules", () => {
     expect(canAddPunishment(3)).toBe(false);
   });
 
-  it("only runs started in the month count toward km", () => {
-    const total = sumRunsForMonth(
-      [
-        { sport_type: "Run", distance: 10_000, start_date_local: "2026-10-03T07:00:00Z" },
-        { sport_type: "TrailRun", distance: 5_000, start_date_local: "2026-10-10T07:00:00Z" },
-        { sport_type: "Ride", distance: 40_000, start_date_local: "2026-10-11T07:00:00Z" },
-        { sport_type: "Run", distance: 8_000, start_date_local: "2026-09-30T23:30:00Z" },
-      ],
-      "2026-10",
-    );
-    expect(total).toEqual({ meters: 15_000, runs: 2 });
-  });
-
   it("previous month wraps across the year", () => {
     expect(previousMonthKey("2026-01")).toBe("2025-12");
   });
 });
 
-import { canEditRun, isValidPin, isValidRunDate, totalsForMonth } from "./league";
+import { canEditRun, isValidRunDate, totalsForMonth } from "./league";
 
 describe("manual runs", () => {
   it("sums only runs in the given month per player", () => {
@@ -70,10 +51,6 @@ describe("manual runs", () => {
     expect(canEditRun({ isOwner: true, monthSpun: false })).toBe(true);
     expect(canEditRun({ isOwner: false, monthSpun: false })).toBe(false);
     expect(canEditRun({ isOwner: true, monthSpun: true })).toBe(false);
-  });
-  it("PIN must be 4 digits", () => {
-    expect(isValidPin("1234")).toBe(true);
-    expect(isValidPin("123")).toBe(false);
   });
   it("rejects future run dates", () => {
     const now = new Date("2026-10-21T12:00:00Z");

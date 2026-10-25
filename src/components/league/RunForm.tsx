@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { addRun, deleteRun, updateRun } from "@/lib/league.functions";
 import type { FeedRun } from "@/lib/league-types";
+import { readRunScreenshot } from "./read-screenshot";
 
 /** Downscale an image to max 1600px JPEG data URL so uploads stay small. */
 async function compress(file: File): Promise<string> {
@@ -55,7 +56,44 @@ export function RunForm({
   const [note, setNote] = useState(run?.note ?? "");
   const [photo, setPhoto] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState<{ kind: "idle" | "reading" | "failed" } | { kind: "done"; found: string[] }>({
+    kind: "idle",
+  });
+  // Fields the person typed in themselves are never overwritten by the screenshot reader.
+  const touched = useRef({ km: false, minutes: false, date: false });
+  const readId = useRef(0);
   const preview = photo ?? run?.photoUrl ?? null;
+
+  const onScreenshot = async (file: File) => {
+    try {
+      setPhoto(await compress(file));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't read that image");
+      return;
+    }
+    const id = ++readId.current;
+    setReading({ kind: "reading" });
+    try {
+      const stats = await readRunScreenshot(file);
+      if (id !== readId.current) return;
+      const found: string[] = [];
+      if (stats.km && !touched.current.km) {
+        setKm(String(stats.km));
+        found.push("distance");
+      }
+      if (stats.seconds && !touched.current.minutes) {
+        setMinutes(String(Math.max(1, Math.round(stats.seconds / 60))));
+        found.push("time");
+      }
+      if (stats.date && !touched.current.date) {
+        setDate(stats.date);
+        found.push("date");
+      }
+      setReading(found.length ? { kind: "done", found } : { kind: "failed" });
+    } catch {
+      if (id === readId.current) setReading({ kind: "failed" });
+    }
+  };
 
   const done = async () => {
     await qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -101,37 +139,53 @@ export function RunForm({
             }
           }}
         >
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-1 flex flex-col gap-1.5">
-              <Label htmlFor="km">Km</Label>
-              <Input id="km" inputMode="decimal" value={km} onChange={(e) => setKm(e.target.value)} placeholder="5.2" />
-            </div>
-            <div className="col-span-1 flex flex-col gap-1.5">
-              <Label htmlFor="min">Minutes</Label>
-              <Input id="min" inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))} placeholder="28" />
-            </div>
-            <div className="col-span-1 flex flex-col gap-1.5">
-              <Label htmlFor="date">Date</Label>
-              <Input id="date" type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-          </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="photo">Screenshot of the run</Label>
+            <Label htmlFor="photo">Screenshot from Strava or Garmin</Label>
             <Input
               id="photo"
               type="file"
               accept="image/*"
-              onChange={async (e) => {
+              onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (!f) return;
-                try {
-                  setPhoto(await compress(f));
-                } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Couldn't read that image");
-                }
+                if (f) void onScreenshot(f);
               }}
             />
+            {reading.kind === "reading" && (
+              <p className="text-xs text-muted-foreground">Reading the numbers from your screenshot…</p>
+            )}
+            {reading.kind === "done" && (
+              <p className="text-xs text-accent">
+                Filled in the {reading.found.join(", ").replace(/, (?=[^,]*$)/, " and ")} from your screenshot. Check
+                it's right.
+              </p>
+            )}
+            {reading.kind === "failed" && (
+              <p className="text-xs text-muted-foreground">Couldn't read the numbers from this one. Type them in below.</p>
+            )}
             {preview && <img src={preview} alt="Run screenshot preview" className="mt-2 max-h-64 rounded-md border border-border object-contain" />}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1 flex flex-col gap-1.5">
+              <Label htmlFor="km">Km</Label>
+              <Input id="km" inputMode="decimal" value={km} onChange={(e) => {
+                  touched.current.km = true;
+                  setKm(e.target.value);
+                }} placeholder="5.2" />
+            </div>
+            <div className="col-span-1 flex flex-col gap-1.5">
+              <Label htmlFor="min">Minutes</Label>
+              <Input id="min" inputMode="numeric" value={minutes} onChange={(e) => {
+                  touched.current.minutes = true;
+                  setMinutes(e.target.value.replace(/\D/g, ""));
+                }} placeholder="28" />
+            </div>
+            <div className="col-span-1 flex flex-col gap-1.5">
+              <Label htmlFor="date">Date</Label>
+              <Input id="date" type="date" max={today()} value={date} onChange={(e) => {
+                  touched.current.date = true;
+                  setDate(e.target.value);
+                }} />
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="note">How did it go? (optional)</Label>

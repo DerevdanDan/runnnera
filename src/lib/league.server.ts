@@ -1,6 +1,6 @@
 import { canEditRun, findLoser, monthKey, previousMonthKey, rankStandings, totalsForMonth } from "./league";
-import type { Dashboard, FeedRun, StandingRow, WheelSlice } from "./league-types";
-import { getAppSession } from "./session.server";
+import type { Dashboard, FeedRun, PunishmentRow, StandingRow, WheelSlice } from "./league-types";
+import { getAppSession, type AppSessionData } from "./session.server";
 
 export const PHOTO_BUCKET = "run-photos";
 const FEED_LIMIT = 100;
@@ -10,31 +10,41 @@ export async function admin() {
   return supabaseAdmin;
 }
 
-type PlayerRow = { id: string; name: string; pin_hash: string | null; is_admin: boolean };
+const PLAYER_COLUMNS = "id, name, is_admin, user_id, email";
+type PlayerRow = { id: string; name: string; is_admin: boolean; user_id: string | null; email: string | null };
 
 async function loadPlayers(): Promise<PlayerRow[]> {
   const db = await admin();
-  const { data, error } = await db.from("players").select("id, name, pin_hash, is_admin").order("name");
+  const { data, error } = await db.from("players").select(PLAYER_COLUMNS).order("name");
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
-/** The signed-in player, or throws. */
-export async function requireAdmin(): Promise<void> {
-  const me = await requirePlayer();
-  const db = await admin();
-  const { data } = await db.from("players").select("is_admin").eq("id", me.id).maybeSingle();
-  if (!data?.is_admin) throw new Error("Only the admin can do that");
+/** The session only counts while the same Google account still owns the player (the admin can reset it). */
+function ownsPlayer(p: PlayerRow, s: AppSessionData): boolean {
+  return !!s.userId && p.id === s.playerId && p.user_id === s.userId;
 }
 
-export async function requirePlayer(): Promise<{ id: string; name: string }> {
+export async function startSession(playerId: string, userId: string) {
+  const session = await getAppSession();
+  await session.update({ playerId, userId });
+}
+
+/** The signed-in player, or throws. */
+export async function requirePlayer(): Promise<PlayerRow> {
   const session = await getAppSession();
   const id = session.data.playerId;
   if (!id) throw new Error("Please sign in first");
   const db = await admin();
-  const { data } = await db.from("players").select("id, name").eq("id", id).maybeSingle();
-  if (!data) throw new Error("Please sign in first");
+  const { data } = await db.from("players").select(PLAYER_COLUMNS).eq("id", id).maybeSingle();
+  if (!data || !ownsPlayer(data, session.data)) throw new Error("Please sign in first");
   return data;
+}
+
+export async function requireAdmin(): Promise<PlayerRow> {
+  const me = await requirePlayer();
+  if (!me.is_admin) throw new Error("Only the admin can do that");
+  return me;
 }
 
 async function isMonthSpun(month: string): Promise<boolean> {
@@ -111,17 +121,11 @@ async function loadFeed(players: PlayerRow[], meId: string | null): Promise<Feed
 export async function buildDashboard(): Promise<Dashboard> {
   const players = await loadPlayers();
   const session = await getAppSession();
-  const mine = players.find((p) => p.id === session.data.playerId);
+  const mine = players.find((p) => ownsPlayer(p, session.data));
   if (!mine) {
     const month = monthKey(new Date());
     const [standings, feed] = await Promise.all([standingsFor(players, month), loadFeed(players, null)]);
-    return {
-      state: "signed_out",
-      players: players.map((p) => ({ id: p.id, name: p.name, hasPin: !!p.pin_hash })),
-      month,
-      standings,
-      feed,
-    };
+    return { state: "signed_out", month, standings, feed };
   }
 
   const db = await admin();
@@ -137,12 +141,9 @@ export async function buildDashboard(): Promise<Dashboard> {
   ]);
   const nameOf = new Map(players.map((p) => [p.id, p.name]));
 
-  const current = (punishments ?? []).filter((p) => p.month === month);
-  const myPunishments = current.filter((p) => p.player_id === mine.id).map((p) => ({ id: p.id, text: p.text }));
-  const punishmentCounts = players.map((p) => ({
-    name: p.name,
-    count: current.filter((x) => x.player_id === p.id).length,
-  }));
+  const current: PunishmentRow[] = (punishments ?? [])
+    .filter((p) => p.month === month)
+    .map((p) => ({ id: p.id, text: p.text, playerId: p.player_id, author: nameOf.get(p.player_id) ?? "?" }));
 
   const wheel: WheelSlice[] = (punishments ?? [])
     .filter((p) => p.month === prev)
@@ -167,7 +168,8 @@ export async function buildDashboard(): Promise<Dashboard> {
         prevSpin && spunSlice
           ? { punishmentId: spunSlice.id, text: spunSlice.text, author: spunSlice.author, spunAt: prevSpin.spun_at }
           : null,
-      canSpin: !prevSpin && !!loser && loser.playerId === mine.id && wheel.length > 0,
+      // The admin can spin for a loser who never shows up, so the month always gets settled.
+      canSpin: !prevSpin && !!loser && (loser.playerId === mine.id || mine.is_admin) && wheel.length > 0,
     };
   }
 
@@ -176,8 +178,10 @@ export async function buildDashboard(): Promise<Dashboard> {
     me: { playerId: mine.id, name: mine.name, isAdmin: mine.is_admin },
     month,
     standings,
-    myPunishments,
-    punishmentCounts,
+    punishments: current,
+    people: mine.is_admin
+      ? players.map((p) => ({ id: p.id, name: p.name, email: p.email, claimed: !!p.user_id, isAdmin: p.is_admin }))
+      : null,
     lastMonth,
     feed,
   };
@@ -193,7 +197,9 @@ export async function spinForLastMonth(): Promise<{ punishmentId: string }> {
 
   const players = await loadPlayers();
   const loser = findLoser(await standingsFor(players, prev));
-  if (!loser || loser.playerId !== me.id) throw new Error("Only last month's last place can spin the wheel");
+  if (!loser || (loser.playerId !== me.id && !me.is_admin)) {
+    throw new Error("Only last month's last place (or the admin) can spin the wheel");
+  }
 
   const { data: slices } = await db.from("punishments").select("id").eq("month", prev);
   if (!slices || slices.length === 0) throw new Error("No punishments were submitted last month");
@@ -203,7 +209,9 @@ export async function spinForLastMonth(): Promise<{ punishmentId: string }> {
   const chosen = slices[(pick[0] ?? 0) % slices.length];
   if (!chosen) throw new Error("No punishments were submitted last month");
 
-  const { error } = await db.from("spins").insert({ month: prev, loser_player_id: me.id, punishment_id: chosen.id });
+  const { error } = await db
+    .from("spins")
+    .insert({ month: prev, loser_player_id: loser.playerId, punishment_id: chosen.id });
   if (error) {
     const { data: again } = await db.from("spins").select("punishment_id").eq("month", prev).maybeSingle();
     if (again) return { punishmentId: again.punishment_id };

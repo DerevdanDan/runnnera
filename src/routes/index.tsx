@@ -9,6 +9,7 @@ import { AddPlayer } from "@/components/league/AddPlayer";
 import { RunFeed } from "@/components/league/RunFeed";
 import { daysLeftInMonth, formatMonth } from "@/lib/league";
 import { getDashboard, signOut } from "@/lib/league.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 const dashboardQuery = queryOptions({
   queryKey: ["dashboard"],
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Alvaro, Daniil and Mario log their runs every month. Last place spins the punishment wheel.",
+          "A monthly running league between friends. Last place spins the punishment wheel.",
       },
       { property: "og:title", content: "Last Place Spins — monthly running league" },
       {
@@ -42,7 +43,7 @@ function Index() {
   if (data.state === "signed_out")
     return (
       <>
-        <Landing players={data.players} />
+        <Landing />
         <main className="mx-auto max-w-6xl px-5 pb-16">
           <h2 className="font-display text-5xl leading-none">{formatMonth(data.month)}</h2>
           <p className="mb-5 mt-2 text-sm text-muted-foreground">Who has run how much this month.</p>
@@ -72,6 +73,8 @@ function DashboardView({ data }: { data: Extract<Awaited<ReturnType<typeof getDa
             className="text-sm text-muted-foreground hover:text-foreground"
             onClick={async () => {
               await logout();
+              // Also drop the Google session, or the landing page would sign straight back in.
+              await supabase.auth.signOut();
               await qc.invalidateQueries({ queryKey: ["dashboard"] });
             }}
           >
@@ -99,12 +102,17 @@ function DashboardView({ data }: { data: Extract<Awaited<ReturnType<typeof getDa
           </p>
           <Leaderboard standings={data.standings} meId={data.me.playerId} />
         </section>
-        <Punishments month={data.month} mine={data.myPunishments} counts={data.punishmentCounts} />
+        <Punishments
+          month={data.month}
+          meId={data.me.playerId}
+          punishments={data.punishments}
+          people={data.standings}
+        />
       </div>
 
-      {data.me.isAdmin && (
+      {data.people && (
         <div className="mt-12">
-          <AddPlayer />
+          <AddPlayer people={data.people} meId={data.me.playerId} />
         </div>
       )}
 
