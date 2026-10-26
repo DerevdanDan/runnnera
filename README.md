@@ -4,7 +4,7 @@ I want to build a web app that connects to Strava data and counts how many km th
 
 This project was built with [Lovable](https://lovable.dev).
 
-**Live app**: https://runnnera.lovable.app
+**Live app**: https://runnnera.vercel.app
 
 ## Build with Lovable
 
