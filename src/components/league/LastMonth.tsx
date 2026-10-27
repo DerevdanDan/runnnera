@@ -1,15 +1,18 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { formatMonth, metersToKm } from "@/lib/league";
 import type { LastMonthResult } from "@/lib/league-types";
-import { spinWheel } from "@/lib/league.functions";
+import { deletePunishment, spinWheel } from "@/lib/league.functions";
+import { ProofUpload, ProofView } from "./Proof";
 import { Wheel } from "./Wheel";
 
 export function LastMonth({ result, meId }: { result: LastMonthResult; meId: string }) {
   const spin = useServerFn(spinWheel);
+  const remove = useServerFn(deletePunishment);
   const qc = useQueryClient();
   const [target, setTarget] = useState<string | null>(result.spin?.punishmentId ?? null);
   const [spinning, setSpinning] = useState(false);
@@ -21,7 +24,7 @@ export function LastMonth({ result, meId }: { result: LastMonthResult; meId: str
   const landedSlice = result.wheel.find((w) => w.id === landed);
 
   return (
-    <section className="rounded-2xl border border-destructive/40 bg-card p-6">
+    <section className="panel border-destructive/40 p-6">
       <p className="font-display text-lg tracking-[0.25em] text-destructive">{formatMonth(result.month)} verdict</p>
       {result.loser ? (
         <h2 className="mt-1 font-display text-5xl leading-none">
@@ -58,6 +61,14 @@ export function LastMonth({ result, meId }: { result: LastMonthResult; meId: str
                 </p>
                 <p className="mt-2 font-display text-4xl leading-tight">{landedSlice.text}</p>
                 <p className="mt-2 text-xs opacity-80">Written by {landedSlice.author}</p>
+                {result.spin && (result.spin.proof || result.canAddProof) && (
+                  <div className="mt-4 flex flex-col gap-3 text-foreground">
+                    {result.spin.proof ? (
+                      <ProofView proof={result.spin.proof} label={`Proof of ${result.loser?.name}'s punishment`} />
+                    ) : null}
+                    {result.canAddProof && <ProofUpload month={result.month} hasProof={!!result.spin.proof} />}
+                  </div>
+                )}
               </div>
             ) : result.canSpin ? (
               <div>
@@ -91,8 +102,30 @@ export function LastMonth({ result, meId }: { result: LastMonthResult; meId: str
             )}
             <ul className="mt-6 flex flex-col gap-1 text-sm text-muted-foreground">
               {result.wheel.map((w) => (
-                <li key={w.id} className={w.id === landed && !spinning ? "font-semibold text-foreground" : ""}>
-                  · {w.text} <span className="opacity-60">— {w.author}</span>
+                <li
+                  key={w.id}
+                  className={`flex items-start gap-2 ${w.id === landed && !spinning ? "font-semibold text-foreground" : ""}`}
+                >
+                  <span className="flex-1">
+                    · {w.text} <span className="opacity-60">— {w.author}</span>
+                  </span>
+                  {w.canDelete && !spinning && (
+                    <button
+                      aria-label={`Remove "${w.text}"`}
+                      className="rounded p-0.5 hover:text-destructive"
+                      onClick={async () => {
+                        if (!confirm(`Remove "${w.text}" (by ${w.author}) from the wheel?`)) return;
+                        try {
+                          await remove({ data: { id: w.id } });
+                          await qc.invalidateQueries({ queryKey: ["dashboard"] });
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Couldn't remove it");
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

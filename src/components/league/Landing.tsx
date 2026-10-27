@@ -52,7 +52,7 @@ export function Landing() {
       try {
         const res = await link();
         if (cancelled) return;
-        if (res.status === "signed_in") await qc.invalidateQueries({ queryKey: ["dashboard"] });
+        if (res.status === "signed_in") await qc.invalidateQueries();
         else setStep({ kind: "pick", email: data.session.user.email ?? null, unclaimed: res.unclaimed });
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Couldn't sign in");
@@ -141,7 +141,7 @@ export function Landing() {
                   setBusy(true);
                   try {
                     await claim({ data: { playerId: picked.id } });
-                    await qc.invalidateQueries({ queryKey: ["dashboard"] });
+                    await qc.invalidateQueries();
                   } catch (err) {
                     toast.error(err instanceof Error ? err.message : "Couldn't pick that name");
                     setBusy(false);

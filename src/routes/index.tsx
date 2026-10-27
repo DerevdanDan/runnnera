@@ -1,20 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Landing } from "@/components/league/Landing";
 import { LastMonth } from "@/components/league/LastMonth";
 import { Leaderboard } from "@/components/league/Leaderboard";
+import { MonthWheel } from "@/components/league/MonthWheel";
 import { Punishments } from "@/components/league/Punishments";
 import { AddPlayer } from "@/components/league/AddPlayer";
 import { RunFeed } from "@/components/league/RunFeed";
+import { ShareButton } from "@/components/league/ShareButton";
 import { daysLeftInMonth, formatMonth } from "@/lib/league";
-import { getDashboard, signOut } from "@/lib/league.functions";
-import { supabase } from "@/integrations/supabase/client";
-
-const dashboardQuery = queryOptions({
-  queryKey: ["dashboard"],
-  queryFn: () => getDashboard(),
-});
+import type { PunishmentRow, StandingRow } from "@/lib/league-types";
+import { dashboardQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,6 +34,38 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+/** Month heading, days left, share button and the leaderboard. */
+function MonthStandings({
+  month,
+  standings,
+  punishments,
+  meId,
+}: {
+  month: string;
+  standings: StandingRow[];
+  punishments: PunishmentRow[];
+  meId: string | null;
+}) {
+  const daysLeft = daysLeftInMonth(new Date());
+  return (
+    <section>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-6xl leading-none md:text-7xl">{formatMonth(month)}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            <span className="font-display text-2xl text-foreground">{daysLeft}</span> {daysLeft === 1 ? "day" : "days"} left
+            · fewest km at the end spins
+          </p>
+        </div>
+        <ShareButton month={month} standings={standings} punishmentCount={punishments.length} />
+      </div>
+      <div className="mt-5">
+        <Leaderboard standings={standings} meId={meId} />
+      </div>
+    </section>
+  );
+}
+
 function Index() {
   const { data } = useSuspenseQuery(dashboardQuery);
   if (data.state === "signed_out")
@@ -45,9 +73,10 @@ function Index() {
       <>
         <Landing />
         <main className="mx-auto max-w-6xl px-5 pb-16">
-          <h2 className="font-display text-5xl leading-none">{formatMonth(data.month)}</h2>
-          <p className="mb-5 mt-2 text-sm text-muted-foreground">Who has run how much this month.</p>
-          <Leaderboard standings={data.standings} meId={null} />
+          <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+            <MonthStandings month={data.month} standings={data.standings} punishments={data.punishments} meId={null} />
+            <MonthWheel month={data.month} standings={data.standings} punishments={data.punishments} meId={null} />
+          </div>
           <div className="mt-12">
             <RunFeed feed={data.feed} canLog={false} />
           </div>
@@ -55,70 +84,38 @@ function Index() {
       </>
     );
 
-  return <DashboardView data={data} />;
-}
-
-function DashboardView({ data }: { data: Extract<Awaited<ReturnType<typeof getDashboard>>, { state: "ready" }> }) {
-  const logout = useServerFn(signOut);
-  const qc = useQueryClient();
-  const daysLeft = daysLeftInMonth(new Date());
-
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8 md:py-12">
-      <header className="flex items-center justify-between gap-4">
-        <p className="font-display text-2xl tracking-[0.2em] text-primary">Last Place Spins</p>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold">{data.me.name}</span>
-          <button
-            className="text-sm text-muted-foreground hover:text-foreground"
-            onClick={async () => {
-              await logout();
-              // Also drop the Google session, or the landing page would sign straight back in.
-              await supabase.auth.signOut();
-              await qc.invalidateQueries({ queryKey: ["dashboard"] });
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
+    <main className="mx-auto max-w-6xl px-5 py-8 md:py-10">
       {data.lastMonth && (
-        <div className="mt-8">
+        <div className="mb-10">
           <LastMonth result={data.lastMonth} meId={data.me.playerId} />
         </div>
       )}
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-        <section>
-          <div className="flex items-end justify-between gap-4">
-            <h1 className="font-display text-6xl leading-none md:text-7xl">{formatMonth(data.month)}</h1>
-            <p className="pb-1 text-right text-sm text-muted-foreground">
-              <span className="font-display text-3xl text-foreground">{daysLeft}</span> days left
-            </p>
-          </div>
-          <p className="mb-5 mt-2 text-sm text-muted-foreground">
-            Runs logged this month by everyone.
-          </p>
-          <Leaderboard standings={data.standings} meId={data.me.playerId} />
-        </section>
-        <Punishments
+      <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+        <MonthStandings
           month={data.month}
-          meId={data.me.playerId}
+          standings={data.standings}
           punishments={data.punishments}
-          people={data.standings}
+          meId={data.me.playerId}
         />
+        <MonthWheel month={data.month} standings={data.standings} punishments={data.punishments} meId={data.me.playerId}>
+          <Punishments
+            month={data.month}
+            mineCount={data.punishments.filter((p) => p.playerId === data.me.playerId).length}
+          />
+        </MonthWheel>
       </div>
-
-      {data.people && (
-        <div className="mt-12">
-          <AddPlayer people={data.people} meId={data.me.playerId} />
-        </div>
-      )}
 
       <div className="mt-12">
         <RunFeed feed={data.feed} />
       </div>
+
+      {data.people && (
+        <div className="mt-12">
+          <AddPlayer people={data.people} meId={data.me.playerId} month={data.month} />
+        </div>
+      )}
     </main>
   );
 }

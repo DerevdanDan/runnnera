@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { metersToKm } from "@/lib/league";
 import type { FeedRun } from "@/lib/league-types";
+import { Avatar } from "./Leaderboard";
 import { RunForm } from "./RunForm";
 
 function pace(r: FeedRun) {
@@ -38,7 +39,7 @@ export function RunFeed({ feed, canLog = true }: { feed: FeedRun[]; canLog?: boo
       ) : (
         <ul className="mt-5 grid gap-4 sm:grid-cols-2">
           {feed.map((r) => (
-            <li key={r.id} className="overflow-hidden rounded-xl border border-border bg-card">
+            <li key={r.id} className="panel overflow-hidden">
               {r.photoUrl && (
                 <button type="button" className="block w-full" onClick={() => setZoom(r.photoUrl)}>
                   <img src={r.photoUrl} alt={`${r.name}'s run screenshot`} loading="lazy" className="h-56 w-full bg-secondary object-cover" />
@@ -46,12 +47,15 @@ export function RunFeed({ feed, canLog = true }: { feed: FeedRun[]; canLog?: boo
               )}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={r.name} size="sm" />
+                    <div>
                     <p className="font-display text-2xl leading-none tracking-wide">{r.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {new Date(`${r.runDate}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}
                       {r.updatedAt !== r.createdAt && " · edited"}
                     </p>
+                    </div>
                   </div>
                   <p className="font-display text-4xl leading-none tabular-nums">
                     {metersToKm(r.meters).toFixed(1)}

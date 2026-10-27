@@ -78,6 +78,9 @@ export function Wheel({
           }}
           onTransitionEnd={() => onSpinEnd?.()}
         >
+          {slices.length === 0 && (
+            <circle cx={C} cy={C} r={R} fill="var(--secondary)" stroke="var(--border)" strokeWidth={3} />
+          )}
           {slices.map((s, i) => {
             const start = i * slice;
             const end = start + slice;

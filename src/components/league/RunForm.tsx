@@ -32,6 +32,12 @@ async function compress(file: File): Promise<string> {
   }
 }
 
+/** SHA-256 of the original screenshot file, so the server can spot the same file being logged twice. */
+async function fileHash(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function today() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -55,6 +61,7 @@ export function RunForm({
   const [minutes, setMinutes] = useState(run?.durationSeconds ? String(Math.round(run.durationSeconds / 60)) : "");
   const [note, setNote] = useState(run?.note ?? "");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoHash, setPhotoHash] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState<{ kind: "idle" | "reading" | "failed" } | { kind: "done"; found: string[] }>({
     kind: "idle",
@@ -67,6 +74,7 @@ export function RunForm({
   const onScreenshot = async (file: File) => {
     try {
       setPhoto(await compress(file));
+      setPhotoHash(await fileHash(file).catch(() => null));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't read that image");
       return;
@@ -104,7 +112,9 @@ export function RunForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display text-3xl tracking-wide">{run ? "Edit run" : "Log a run"}</DialogTitle>
+          <DialogTitle className="font-display text-3xl tracking-wide">
+            {run ? `Edit run · ${run.name}` : "Log a run"}
+          </DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -127,9 +137,21 @@ export function RunForm({
                 durationMinutes: minutes ? Number(minutes) : null,
                 note: note.trim() || null,
                 photo,
+                photoHash,
               };
               if (run) await update({ data: { ...payload, id: run.id } });
-              else await add({ data: payload });
+              else {
+                const res = await add({ data: payload });
+                if (!res.ok) {
+                  const d = res.duplicateOf;
+                  const when = new Date(`${d.runDate}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+                  const ok = confirm(
+                    `This looks like a run that's already logged: ${d.name}, ${d.km.toFixed(1)} km on ${when}.\n\nLog it anyway?`,
+                  );
+                  if (!ok) return;
+                  await add({ data: { ...payload, allowDuplicate: true } });
+                }
+              }
               toast.success(run ? "Run updated" : "Run logged");
               await done();
             } catch (err) {
@@ -192,7 +214,7 @@ export function RunForm({
             <Textarea id="note" maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Easy morning loop by the river" />
           </div>
           <div className="flex items-center justify-between gap-3">
-            {run ? (
+            {run?.canDelete ? (
               <Button
                 type="button"
                 variant="ghost"

@@ -29,6 +29,13 @@
       "when": 1792969507000,
       "tag": "0003_google_login",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793104000000,
+      "tag": "0004_newcomers_locks_proof",
+      "breakpoints": true
     }
   ]
 }

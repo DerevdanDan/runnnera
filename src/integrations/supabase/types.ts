@@ -50,9 +50,11 @@ export type Database = {
         Row: {
           athlete_id: number | null
           claimed_at: string | null
+          counts_from: string
           created_at: string
           email: string | null
           id: string
+          invite_email: string | null
           is_admin: boolean
           name: string
           pin_hash: string | null
@@ -62,9 +64,11 @@ export type Database = {
         Insert: {
           athlete_id?: number | null
           claimed_at?: string | null
+          counts_from: string
           created_at?: string
           email?: string | null
           id?: string
+          invite_email?: string | null
           is_admin?: boolean
           name: string
           pin_hash?: string | null
@@ -74,9 +78,11 @@ export type Database = {
         Update: {
           athlete_id?: number | null
           claimed_at?: string | null
+          counts_from?: string
           created_at?: string
           email?: string | null
           id?: string
+          invite_email?: string | null
           is_admin?: boolean
           name?: string
           pin_hash?: string | null
@@ -132,6 +138,7 @@ export type Database = {
           id: string
           meters: number
           note: string | null
+          photo_hash: string | null
           photo_path: string | null
           player_id: string
           run_date: string
@@ -143,6 +150,7 @@ export type Database = {
           id?: string
           meters: number
           note?: string | null
+          photo_hash?: string | null
           photo_path?: string | null
           player_id: string
           run_date: string
@@ -154,6 +162,7 @@ export type Database = {
           id?: string
           meters?: number
           note?: string | null
+          photo_hash?: string | null
           photo_path?: string | null
           player_id?: string
           run_date?: string
@@ -173,18 +182,27 @@ export type Database = {
         Row: {
           loser_player_id: string
           month: string
+          proof_at: string | null
+          proof_path: string | null
+          proof_type: string | null
           punishment_id: string
           spun_at: string
         }
         Insert: {
           loser_player_id: string
           month: string
+          proof_at?: string | null
+          proof_path?: string | null
+          proof_type?: string | null
           punishment_id: string
           spun_at?: string
         }
         Update: {
           loser_player_id?: string
           month?: string
+          proof_at?: string | null
+          proof_path?: string | null
+          proof_type?: string | null
           punishment_id?: string
           spun_at?: string
         }
