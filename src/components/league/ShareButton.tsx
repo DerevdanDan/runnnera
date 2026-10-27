@@ -8,7 +8,7 @@ export function shareText(month: string, standings: StandingRow[], punishmentCou
   const newcomers = standings.filter((s) => !s.counts);
   const loser = findMonthLoser(standings);
   const lines = [
-    `🏃 Last Place Spins · ${formatMonth(month)}`,
+    `🏃 Runnnera · ${formatMonth(month)}`,
     "",
     ...racing.map(
       (s, i) => `${i + 1}. ${s.name} ${metersToKm(s.meters).toFixed(1)} km${s.playerId === loser?.playerId ? " 🎡" : ""}`,

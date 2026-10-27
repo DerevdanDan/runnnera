@@ -6,7 +6,7 @@ import { formatMonth } from "@/lib/league";
 import { historyQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/history")({
-  head: () => ({ meta: [{ title: "Hall of shame — Last Place Spins" }] }),
+  head: () => ({ meta: [{ title: "Hall of shame — Runnnera" }] }),
   loader: ({ context }) => context.queryClient.ensureQueryData(historyQuery),
   component: History,
 });

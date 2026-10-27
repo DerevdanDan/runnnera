@@ -84,7 +84,7 @@ export function Landing() {
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col justify-center px-6 py-16">
-      <p className="font-display text-xl tracking-[0.3em] text-primary">Monthly running league</p>
+      <p className="font-display text-xl tracking-[0.3em] text-primary">Runnnera · monthly running league</p>
       <h1 className="mt-3 font-display text-[clamp(4rem,14vw,10rem)] leading-[0.85] text-foreground">
         Last place
         <br />

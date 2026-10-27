@@ -15,13 +15,13 @@ import { dashboardQuery } from "@/lib/queries";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Last Place Spins — monthly running league" },
+      { title: "Runnnera — monthly running league" },
       {
         name: "description",
         content:
           "A monthly running league between friends. Last place spins the punishment wheel.",
       },
-      { property: "og:title", content: "Last Place Spins — monthly running league" },
+      { property: "og:title", content: "Runnnera — monthly running league" },
       {
         property: "og:description",
         content: "Log every run with a screenshot. Fewest kilometres at month end spins the punishment wheel.",

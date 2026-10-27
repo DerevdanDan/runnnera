@@ -68,9 +68,9 @@ export function AppHeader() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3">
         <Link to="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-primary font-display text-lg text-primary-foreground shadow-glow">
-            L
+            R
           </span>
-          <span className="font-display text-xl tracking-[0.08em] sm:text-2xl sm:tracking-[0.15em]">Last Place Spins</span>
+          <span className="font-display text-xl tracking-[0.08em] sm:text-2xl sm:tracking-[0.15em]">Runnnera</span>
         </Link>
 
         <nav className="order-last flex w-full gap-1 sm:order-none sm:w-auto">

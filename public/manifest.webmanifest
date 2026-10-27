@@ -1,6 +1,6 @@
 {
-  "name": "Last Place Spins",
-  "short_name": "Last Place",
+  "name": "Runnnera",
+  "short_name": "Runnnera",
   "description": "Monthly running league: fewest km at month end spins the punishment wheel.",
   "start_url": "/",
   "scope": "/",

@@ -81,13 +81,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Last Place Spins" },
+      { title: "Runnnera" },
       { name: "description", content: "A monthly running league with a punishment wheel." },
       // Installable on phones (Home Screen app)
       { name: "theme-color", content: "#10141d" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "Last Place" },
+      { name: "apple-mobile-web-app-title", content: "Runnnera" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -7,7 +7,7 @@ import type { StatsRow } from "@/lib/league-types";
 import { statsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/stats")({
-  head: () => ({ meta: [{ title: "Stats — Last Place Spins" }] }),
+  head: () => ({ meta: [{ title: "Stats — Runnnera" }] }),
   loader: ({ context }) => context.queryClient.ensureQueryData(statsQuery),
   component: Stats,
 });
